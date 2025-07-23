@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyTube GD (HTML, CSS, JS)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom CSS for font and body background */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to bottom right, #3B82F6, #8B5CF6); /* from-blue-500 to-purple-600 */
+        }
+
+        /* Utility for responsive video iframe */
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #4B5563; /* gray-600 */
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #60A5FA; /* blue-400 */
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3B82F6; /* blue-500 */
+        }
+    </style>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Expose Firebase modules globally for use in the main script block
+        window.firebase = {
+            initializeApp,
+            auth: { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged },
+            firestore: { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, serverTimestamp }
+        };
+    </script>
+</head>
+<body class="min-h-screen text-white p-4 sm:p-8 flex flex-col items-center justify-center">
+
+    <div class="w-full max-w-4xl bg-gray-800 bg-opacity-90 rounded-xl shadow-2xl p-6 sm:p-8">
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-center mb-8 text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-blue-400">
+            MyTube GD
+        </h1>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="text-center text-blue-300 mb-4">
+            Memuat data...
+        </div>
+
+        <!-- User ID Display -->
+        <div class="text-center text-gray-400 text-sm mb-6">
+            <span id="userIdDisplay">User ID: Memuat...</span>
+        </div>
+
+        <!-- Form to add new video -->
+        <form id="addVideoForm" class="mb-8 p-6 bg-gray-700 rounded-lg shadow-inner">
+            <h2 class="text-2xl font-semibold mb-4 text-center text-teal-200">Tambahkan Video Baru</h2>
+            <div class="mb-4">
+                <label for="videoTitle" class="block text-gray-300 text-sm font-bold mb-2">
+                    Judul Video:
+                </label>
+                <input
+                    type="text"
+                    id="videoTitle"
+                    class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-900 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-200"
+                    placeholder="Masukkan judul video"
+                    required
+                />
+            </div>
+            <div class="mb-6">
+                <label for="videoLink" class="block text-gray-300 text-sm font-bold mb-2">
+                    Tautan Google Drive (Shareable Link):
+                </label>
+                <input
+                    type="url"
+                    id="videoLink"
+                    class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-900 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-200"
+                    placeholder="Contoh: https://drive.google.com/file/d/FILE_ID/view?usp=sharing"
+                    required
+                />
+            </div>
+
+            <!-- Thumbnail Upload Section -->
+            <div class="mb-6 p-4 bg-gray-600 rounded-lg">
+                <label class="block text-gray-300 text-sm font-bold mb-2">
+                    Thumbnail Video (Opsional):
+                </label>
+                <input
+                    type="file"
+                    id="thumbnailUpload"
+                    accept="image/*"
+                    class="block w-full text-sm text-gray-300
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-500 file:text-white
+                    hover:file:bg-blue-600 cursor-pointer mb-3"
+                />
+                <p class="text-gray-400 text-xs mb-2">Atau paste gambar dari clipboard (Ctrl+V / Cmd+V) di mana saja di halaman ini.</p>
+                <div id="thumbnailPreviewContainer" class="relative w-full h-32 bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden mb-3 border border-dashed border-gray-500">
+                    <img id="thumbnailPreview" src="" alt="Thumbnail Preview" class="hidden w-full h-full object-cover">
+                    <span id="thumbnailPlaceholder" class="text-gray-400 text-sm">Pratinjau Gambar</span>
+                    <button type="button" id="clearThumbnailBtn" class="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hidden">
+                        &times;
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-center">
+                <button
+                    type="submit"
+                    class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-400"
+                >
+                    Tambahkan Video
+                </button>
+            </div>
+        </form>
+
+        <!-- Video List -->
+        <h2 class="text-3xl font-bold text-center mb-6 text-teal-200">Daftar Video Anda</h2>
+        <div id="videoList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Videos will be rendered here by JavaScript -->
+            <p id="noVideosMessage" class="text-center text-gray-400 text-lg col-span-full">Belum ada video yang ditambahkan. Tambahkan yang pertama!</p>
+        </div>
+    </div>
+
+    <!-- Video Player Modal -->
+    <div id="playerModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-900 rounded-xl shadow-2xl p-6 w-full max-w-3xl relative">
+            <button id="closePlayerModal" class="absolute top-3 right-3 bg-red-600 hover:bg-red-700 text-white rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold transition duration-300">
+                &times;
+            </button>
+            <h2 id="playerModalTitle" class="text-2xl font-bold text-center mb-4 text-teal-200"></h2>
+            <div class="video-container rounded-lg">
+                <iframe id="videoPlayerIframe"
+                    src=""
+                    title=""
+                    class="rounded-lg"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                ></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div id="messageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-900 rounded-xl shadow-2xl p-6 w-full max-w-sm relative">
+            <h3 class="text-xl font-bold text-center mb-4 text-teal-200">Pesan</h3>
+            <p id="messageModalContent" class="text-white text-center mb-6"></p>
+            <div class="flex justify-center">
+                <button id="closeMessageModal" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    Oke
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-900 rounded-xl shadow-2xl p-6 w-full max-w-sm relative">
+            <h3 class="text-xl font-bold text-center mb-4 text-orange-200">Konfirmasi</h3>
+            <p id="confirmModalContent" class="text-white text-center mb-6"></p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirmYes" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-400">
+                    Ya
+                </button>
+                <button id="confirmNo" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-400">
+                    Batal
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for Firebase
+        let app;
+        let db;
+        let auth;
+        let userId = 'Memuat...'; // Initial state for userId
+
+        // Access global variables provided by the environment
+        // Ganti dengan konfigurasi Firebase Anda yang sebenarnya!
+        const appId = 'my-youtube-app-local'; // Ganti dengan ID aplikasi unik Anda
+        const firebaseConfig = {
+            apiKey: "AIzaSyAIrpNaBxTb_LuNUc9L2ZugKm7nf_E4a1o",
+            authDomain: "mytubegdapp.firebaseapp.com",
+            projectId: "mytubegdapp",
+            storageBucket: "mytubegdapp.firebasestorage.app",
+            messagingSenderId: "543655692826",
+            appId: "1:543655692826:web:efd120701dbf88c3fddfa3"
+        };
+        const initialAuthToken = null; // Biarkan null untuk masuk secara anonim
+        
+        // Global array to store video data (will be populated by Firestore listener)
+        let videos = [];
+        // Global variable to store the selected/pasted thumbnail as base64
+        let selectedThumbnailBase64 = null;
+
+        // DOM elements
+        const addVideoForm = document.getElementById('addVideoForm');
+        const videoTitleInput = document.getElementById('videoTitle');
+        const videoLinkInput = document.getElementById('videoLink');
+        const videoListContainer = document.getElementById('videoList');
+        const noVideosMessage = document.getElementById('noVideosMessage');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+
+        // Thumbnail elements
+        const thumbnailUploadInput = document.getElementById('thumbnailUpload');
+        const thumbnailPreviewContainer = document.getElementById('thumbnailPreviewContainer');
+        const thumbnailPreview = document.getElementById('thumbnailPreview');
+        const thumbnailPlaceholder = document.getElementById('thumbnailPlaceholder');
+        const clearThumbnailBtn = document.getElementById('clearThumbnailBtn');
+
+        // Player Modal elements
+        const playerModal = document.getElementById('playerModal');
+        const closePlayerModalBtn = document.getElementById('closePlayerModal');
+        const playerModalTitle = document.getElementById('playerModalTitle');
+        const videoPlayerIframe = document.getElementById('videoPlayerIframe');
+
+        // Message Modal elements
+        const messageModal = document.getElementById('messageModal');
+        const messageModalContent = document.getElementById('messageModalContent');
+        const closeMessageModalBtn = document.getElementById('closeMessageModal');
+
+        // Confirm Modal elements
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmModalContent = document.getElementById('confirmModalContent');
+        const confirmYesBtn = document.getElementById('confirmYes');
+        const confirmNoBtn = document.getElementById('confirmNo');
+        let currentConfirmCallback = null; // Callback for confirm modal
+
+        // --- Modal Functions ---
+
+        function showMessageModal(message) {
+            messageModalContent.textContent = message;
+            messageModal.classList.remove('hidden');
+        }
+
+        function closeMessageModal() {
+            messageModal.classList.add('hidden');
+        }
+
+        function showConfirmModal(message, onConfirmCallback) {
+            confirmModalContent.textContent = message;
+            currentConfirmCallback = onConfirmCallback;
+            confirmModal.classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            confirmModal.classList.add('hidden');
+            currentConfirmCallback = null;
+        }
+
+        // --- Thumbnail Handling Functions ---
+
+        function displayThumbnailPreview(base64String) {
+            thumbnailPreview.src = base64String;
+            thumbnailPreview.classList.remove('hidden');
+            thumbnailPlaceholder.classList.add('hidden');
+            clearThumbnailBtn.classList.remove('hidden');
+            selectedThumbnailBase64 = base64String; // Store the base64 string
+        }
+
+        function clearThumbnailPreview() {
+            thumbnailPreview.src = '';
+            thumbnailPreview.classList.add('hidden');
+            thumbnailPlaceholder.classList.remove('hidden');
+            clearThumbnailBtn.classList.add('hidden');
+            thumbnailUploadInput.value = ''; // Clear file input
+            selectedThumbnailBase64 = null; // Clear stored base64
+        }
+
+        // Handle file selection for thumbnail upload
+        thumbnailUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    displayThumbnailPreview(e.target.result);
+                };
+                reader.onerror = (e) => {
+                    console.error("Error reading file:", e);
+                    showMessageModal("Gagal membaca file gambar.");
+                };
+                reader.readAsDataURL(file); // Read file as base64
+            } else if (file) {
+                showMessageModal("Hanya file gambar yang diizinkan untuk thumbnail.");
+                clearThumbnailPreview(); // Clear any invalid selection
+            }
+        });
+
+        // Handle paste event for screenshots
+        document.addEventListener('paste', (event) => {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            displayThumbnailPreview(e.target.result);
+                            showMessageModal("Gambar dari clipboard berhasil ditambahkan sebagai thumbnail!");
+                        };
+                        reader.onerror = (e) => {
+                            console.error("Error reading pasted image:", e);
+                            showMessageModal("Gagal membaca gambar dari clipboard.");
+                        };
+                        reader.readAsDataURL(file); // Read image as base64
+                        event.preventDefault(); // Prevent default paste behavior (e.g., pasting into an input field)
+                        return; // Only process the first image found
+                    }
+                }
+            }
+        });
+
+        // Clear thumbnail button click
+        clearThumbnailBtn.addEventListener('click', clearThumbnailPreview);
+
+        // --- Core Functions ---
+
+        // Function to extract Google Drive file ID from a shareable link
+        function getGoogleDriveFileId(link) {
+            const regex = /(?:https?:\/\/)?(?:www\.)?drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/;
+            const match = link.match(regex);
+            return match ? match[1] : null;
+        }
+
+        // Function to render the video list
+        function renderVideoList() {
+            videoListContainer.innerHTML = ''; // Clear existing list
+
+            if (videos.length === 0) {
+                noVideosMessage.classList.remove('hidden');
+                videoListContainer.appendChild(noVideosMessage);
+                return;
+            } else {
+                noVideosMessage.classList.add('hidden');
+            }
+
+            videos.forEach(video => {
+                const videoCard = document.createElement('div');
+                videoCard.className = 'bg-gray-700 rounded-lg shadow-xl overflow-hidden transform transition duration-300 hover:scale-105 group';
+
+                // Use the stored thumbnailUrl (which can be base64 or placeholder)
+                // Fallback to a generic placeholder if thumbnailUrl is missing
+                const thumbnailUrl = video.thumbnailUrl || `https://placehold.co/600x400/334155/E2E8F0?text=Video+Preview`;
+
+                videoCard.innerHTML = `
+                    <div class="relative w-full h-48 bg-gray-600 flex items-center justify-center overflow-hidden rounded-t-lg">
+                        <img
+                            src="${thumbnailUrl}"
+                            alt="${video.title}"
+                            class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                            onerror="this.onerror=null;this.src='https://placehold.co/600x400/4B5563/D1D5DB?text=Error+Loading';"
+                        />
+                        <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <button data-id="${video.id}" class="play-button bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                <svg class="w-6 h-6 inline-block mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                                Putar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="text-xl font-semibold mb-2 text-blue-200 truncate">${video.title}</h3>
+                        <p class="text-gray-400 text-sm mb-4 break-all">
+                            Link: <span class="font-mono text-xs">${video.embedUrl}</span>
+                        </p>
+                        <div class="flex justify-end">
+                            <button data-id="${video.id}" class="delete-button bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-400">
+                                Hapus
+                            </button>
+                        </div>
+                    </div>
+                `;
+                videoListContainer.appendChild(videoCard);
+            });
+
+            // Attach event listeners to newly created buttons
+            document.querySelectorAll('.play-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const videoId = event.currentTarget.dataset.id; // ID from Firestore doc.id
+                    const videoToPlay = videos.find(v => v.id === videoId);
+                    if (videoToPlay) {
+                        playerModalTitle.textContent = videoToPlay.title;
+                        videoPlayerIframe.src = videoToPlay.embedUrl;
+                        videoPlayerIframe.title = videoToPlay.title;
+                        playerModal.classList.remove('hidden');
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const videoIdToDelete = event.currentTarget.dataset.id; // ID from Firestore doc.id
+                    showConfirmModal('Apakah Anda yakin ingin menghapus video ini?', async () => {
+                        try {
+                            // Ensure userId is available before attempting Firestore operation
+                            if (!userId || userId === 'Memuat...') {
+                                showMessageModal("Gagal menghapus video: User ID belum tersedia. Coba lagi.");
+                                closeConfirmModal();
+                                return;
+                            }
+                            const docRef = firebase.firestore.doc(db, `artifacts/${appId}/users/${userId}/videos`, videoIdToDelete);
+                            await firebase.firestore.deleteDoc(docRef);
+                            // onSnapshot will automatically update the 'videos' array and re-render
+                            closeConfirmModal();
+                        } catch (e) {
+                            console.error("Error deleting document:", e);
+                            showMessageModal("Gagal menghapus video dari database. Periksa izin Firestore Anda.");
+                        }
+                    });
+                });
+            });
+        }
+
+        // --- Firebase Initialization and Listener ---
+        async function initializeFirebaseAndAuth() {
+            try {
+                app = firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore.getFirestore(app);
+                auth = firebase.auth.getAuth(app);
+
+                // Listen for auth state changes
+                firebase.auth.onAuthStateChanged(auth, user => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdDisplay.textContent = `User ID: ${userId}`;
+                        setupFirestoreListener(); // Start listening to Firestore after auth
+                    } else {
+                        // Sign in anonymously if no token or user
+                        if (initialAuthToken) {
+                            firebase.auth.signInWithCustomToken(auth, initialAuthToken)
+                                .catch(e => {
+                                    console.error("Error signing in with custom token:", e);
+                                    showMessageModal("Gagal masuk dengan token khusus. Mencoba masuk secara anonim.");
+                                    firebase.auth.signInAnonymously(auth);
+                                });
+                        } else {
+                            firebase.auth.signInAnonymously(auth);
+                        }
+                    }
+                    loadingIndicator.classList.add('hidden'); // Hide loading once auth state is determined
+                });
+
+            } catch (e) {
+                console.error("Error initializing Firebase or signing in:", e);
+                showMessageModal("Gagal menginisialisasi Firebase atau masuk. Pastikan konfigurasi Firebase Anda benar dan otentikasi diaktifkan.");
+                loadingIndicator.classList.add('hidden');
+                userIdDisplay.textContent = `User ID: Error`;
+            }
+        }
+
+        function setupFirestoreListener() {
+            // Ensure userId is available before setting up listener
+            if (!userId || userId === 'Memuat...') {
+                console.warn("User ID belum tersedia, tidak dapat menyiapkan listener Firestore.");
+                return;
+            }
+            const videosCollectionRef = firebase.firestore.collection(db, `artifacts/${appId}/users/${userId}/videos`);
+            // Use onSnapshot for real-time updates
+            firebase.firestore.onSnapshot(videosCollectionRef, (snapshot) => {
+                const newVideos = [];
+                snapshot.forEach(doc => {
+                    newVideos.push({ id: doc.id, ...doc.data() });
+                });
+                videos = newVideos;
+                renderVideoList(); // Re-render the list with updated data
+            }, (error) => {
+                console.error("Error fetching videos from Firestore:", error);
+                showMessageModal("Gagal memuat video dari database. Coba refresh halaman dan periksa izin Firestore Anda.");
+            });
+        }
+
+        // --- Event Listeners ---
+
+        // Add Video Form Submission
+        addVideoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const newVideoLink = videoLinkInput.value.trim();
+            const newVideoTitle = videoTitleInput.value.trim();
+
+            if (!newVideoLink || !newVideoTitle) {
+                showMessageModal('Judul dan Tautan Video tidak boleh kosong!');
+                return;
+            }
+
+            // Ensure userId is available before attempting Firestore operation
+            if (!userId || userId === 'Memuat...') {
+                showMessageModal("Gagal menambahkan video: User ID belum tersedia. Harap tunggu sebentar atau refresh halaman.");
+                return;
+            }
+
+            const fileId = getGoogleDriveFileId(newVideoLink);
+
+            if (fileId) {
+                const embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+                // Use selected thumbnail if available, otherwise fallback to a generic placeholder
+                const finalThumbnailUrl = selectedThumbnailBase64 || `https://placehold.co/600x400/334155/E2E8F0?text=Video+Preview`;
+
+                try {
+                    const videosCollectionRef = firebase.firestore.collection(db, `artifacts/${appId}/users/${userId}/videos`);
+                    await firebase.firestore.addDoc(videosCollectionRef, {
+                        title: newVideoTitle,
+                        embedUrl: embedUrl,
+                        thumbnailUrl: finalThumbnailUrl, // Store the base64 string or placeholder URL
+                        createdAt: firebase.firestore.serverTimestamp()
+                    });
+                    // onSnapshot will handle updating the UI
+                    videoLinkInput.value = '';
+                    videoTitleInput.value = '';
+                    clearThumbnailPreview(); // Clear thumbnail preview after adding
+                } catch (e) {
+                    console.error("Error adding document:", e);
+                    showMessageModal("Gagal menambahkan video ke database. Periksa izin Firestore Anda.");
+                }
+            } else {
+                showMessageModal('Tautan Google Drive tidak valid. Pastikan itu adalah tautan berbagi yang benar.');
+            }
+        });
+
+        // Close Player Modal
+        closePlayerModalBtn.addEventListener('click', () => {
+            playerModal.classList.add('hidden');
+            videoPlayerIframe.src = ''; // Stop video playback
+        });
+
+        // Close Message Modal
+        closeMessageModalBtn.addEventListener('click', closeMessageModal);
+
+        // Confirm Modal Yes/No
+        confirmYesBtn.addEventListener('click', () => {
+            if (currentConfirmCallback) {
+                currentConfirmCallback();
+            }
+        });
+        confirmNoBtn.addEventListener('click', closeConfirmModal);
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeFirebaseAndAuth(); // Initialize Firebase and authentication
+        });
+    </script>
+</body>
+</html>
