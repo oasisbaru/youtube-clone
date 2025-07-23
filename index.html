@@ -74,77 +74,95 @@
             Memuat data...
         </div>
 
-        <!-- User ID Display (Optional: can be removed if not needed for debugging) -->
-        <div class="text-center text-gray-400 text-sm mb-6">
-            <span id="userIdDisplay">User ID: Memuat...</span>
-        </div>
+        <!-- Toggle Edit Mode Button -->
+        <button id="toggleEditModeBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400 mb-8">
+            Mode Edit
+        </button>
 
-        <!-- Form to add new video -->
-        <form id="addVideoForm" class="mb-8 p-6 bg-gray-700 rounded-lg shadow-inner">
-            <h2 class="text-2xl font-semibold mb-4 text-center text-teal-200">Tambahkan Video Baru</h2>
-            <div class="mb-4">
-                <label for="videoTitle" class="block text-gray-300 text-sm font-bold mb-2">
-                    Judul Video:
-                </label>
-                <input
-                    type="text"
-                    id="videoTitle"
-                    class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-900 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-200"
-                    placeholder="Masukkan judul video"
-                    required
-                />
-            </div>
-            <div class="mb-6">
-                <label for="videoLink" class="block text-gray-300 text-sm font-bold mb-2">
-                    Tautan Google Drive (Shareable Link):
-                </label>
-                <input
-                    type="url"
-                    id="videoLink"
-                    class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-900 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-200"
-                    placeholder="Contoh: https://drive.google.com/file/d/FILE_ID/view?usp=sharing"
-                    required
-                />
+        <!-- Edit Mode Controls (hidden by default) -->
+        <div id="editModeControls" class="mb-8 p-6 bg-gray-700 rounded-lg shadow-inner hidden">
+            <!-- User ID Display -->
+            <div class="text-center text-gray-400 text-sm mb-6">
+                <span id="userIdDisplay">User ID: Memuat...</span>
             </div>
 
-            <!-- Thumbnail Upload Section -->
-            <div class="mb-6 p-4 bg-gray-600 rounded-lg">
-                <label class="block text-gray-300 text-sm font-bold mb-2">
-                    Thumbnail Video (Opsional):
-                </label>
-                <input
-                    type="file"
-                    id="thumbnailUpload"
-                    accept="image/*"
-                    class="block w-full text-sm text-gray-300
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-full file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-blue-500 file:text-white
-                    hover:file:bg-blue-600 cursor-pointer mb-3"
-                />
-                <p class="text-gray-400 text-xs mb-2">Atau paste gambar dari clipboard (Ctrl+V / Cmd+V) di mana saja di halaman ini.</p>
-                <div id="thumbnailPreviewContainer" class="relative w-full h-32 bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden mb-3 border border-dashed border-gray-500">
-                    <img id="thumbnailPreview" src="" alt="Thumbnail Preview" class="hidden w-full h-full object-cover">
-                    <span id="thumbnailPlaceholder" class="text-gray-400 text-sm">Pratinjau Gambar</span>
-                    <button type="button" id="clearThumbnailBtn" class="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hidden">
-                        &times;
+            <!-- Form to add new video -->
+            <form id="addVideoForm" class="mb-8 p-6 bg-gray-700 rounded-lg shadow-inner">
+                <h2 class="text-2xl font-semibold mb-4 text-center text-teal-200">Tambahkan Video Baru</h2>
+                <div class="mb-4">
+                    <label for="videoTitle" class="block text-gray-300 text-sm font-bold mb-2">
+                        Judul Video:
+                    </label>
+                    <input
+                        type="text"
+                        id="videoTitle"
+                        class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-900 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-200"
+                        placeholder="Masukkan judul video"
+                        required
+                    />
+                </div>
+                <div class="mb-6">
+                    <label for="videoLink" class="block text-gray-300 text-sm font-bold mb-2">
+                        Tautan Google Drive (Shareable Link):
+                    </label>
+                    <input
+                        type="url"
+                        id="videoLink"
+                        class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-900 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-200"
+                        placeholder="Contoh: https://drive.google.com/file/d/FILE_ID/view?usp=sharing"
+                        required
+                    />
+                </div>
+
+                <!-- Thumbnail Upload Section -->
+                <div class="mb-6 p-4 bg-gray-600 rounded-lg">
+                    <label class="block text-gray-300 text-sm font-bold mb-2">
+                        Thumbnail Video (Opsional):
+                    </label>
+                    <input
+                        type="file"
+                        id="thumbnailUpload"
+                        accept="image/*"
+                        class="block w-full text-sm text-gray-300
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-500 file:text-white
+                        hover:file:bg-blue-600 cursor-pointer mb-3"
+                    />
+                    <p class="text-gray-400 text-xs mb-2">Atau paste gambar dari clipboard (Ctrl+V / Cmd+V) di mana saja di halaman ini.</p>
+                    <div id="thumbnailPreviewContainer" class="relative w-full h-32 bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden mb-3 border border-dashed border-gray-500">
+                        <img id="thumbnailPreview" src="" alt="Thumbnail Preview" class="hidden w-full h-full object-cover">
+                        <span id="thumbnailPlaceholder" class="text-gray-400 text-sm">Pratinjau Gambar</span>
+                        <button type="button" id="clearThumbnailBtn" class="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hidden">
+                            &times;
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <button
+                        type="submit"
+                        class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-400"
+                    >
+                        Tambahkan Video
                     </button>
                 </div>
-            </div>
+            </form>
+        </div>
 
-            <div class="flex justify-center">
-                <button
-                    type="submit"
-                    class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-400"
-                >
-                    Tambahkan Video
-                </button>
-            </div>
-        </form>
+        <!-- Search Input -->
+        <div class="mb-6">
+            <input
+                type="text"
+                id="searchInput"
+                class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-900 leading-tight focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-200"
+                placeholder="Cari video berdasarkan judul..."
+            />
+        </div>
 
         <!-- Video List -->
-        <h2 class="text-3xl font-bold text-center mb-6 text-teal-200">Daftar Video Anda</h2>
+        <h2 class="text-3xl font-bold text-center mb-6 text-teal-200">Daftar Video</h2>
         <div id="videoList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Videos will be rendered here by JavaScript -->
             <p id="noVideosMessage" class="text-center text-gray-400 text-lg col-span-full">Belum ada video yang ditambahkan. Tambahkan yang pertama!</p>
@@ -226,6 +244,10 @@
         let videos = [];
         // Global variable to store the selected/pasted thumbnail as base64
         let selectedThumbnailBase64 = null;
+        // Global state for edit mode
+        let isEditMode = false; // Default to view mode
+        // Global state for search query
+        let searchQuery = ''; // New: Stores the current search query
 
         // DOM elements
         const addVideoForm = document.getElementById('addVideoForm');
@@ -234,7 +256,7 @@
         const videoListContainer = document.getElementById('videoList');
         const noVideosMessage = document.getElementById('noVideosMessage');
         const loadingIndicator = document.getElementById('loadingIndicator');
-        const userIdDisplay = document.getElementById('userIdDisplay'); // Tetap ada untuk debugging/informasi
+        const userIdDisplay = document.getElementById('userIdDisplay');
 
         // Thumbnail elements
         const thumbnailUploadInput = document.getElementById('thumbnailUpload');
@@ -260,6 +282,13 @@
         const confirmYesBtn = document.getElementById('confirmYes');
         const confirmNoBtn = document.getElementById('confirmNo');
         let currentConfirmCallback = null; // Callback for confirm modal
+
+        // Edit Mode elements
+        const toggleEditModeBtn = document.getElementById('toggleEditModeBtn');
+        const editModeControls = document.getElementById('editModeControls'); // Container for form and user ID
+
+        // Search elements
+        const searchInput = document.getElementById('searchInput'); // New: Search input element
 
         // --- Modal Functions ---
 
@@ -361,21 +390,31 @@
         function renderVideoList() {
             videoListContainer.innerHTML = ''; // Clear existing list
 
-            if (videos.length === 0) {
+            // Filter videos based on search query
+            const filteredVideos = videos.filter(video =>
+                video.title.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+
+            if (filteredVideos.length === 0) {
                 noVideosMessage.classList.remove('hidden');
+                // Adjust message if a search query is active
+                noVideosMessage.textContent = searchQuery ? 'Tidak ada video yang cocok dengan pencarian Anda.' : 'Belum ada video yang ditambahkan. Tambahkan yang pertama!';
                 videoListContainer.appendChild(noVideosMessage);
                 return;
             } else {
                 noVideosMessage.classList.add('hidden');
             }
 
-            videos.forEach(video => {
+            filteredVideos.forEach(video => { // Use filteredVideos here
                 const videoCard = document.createElement('div');
                 videoCard.className = 'bg-gray-700 rounded-lg shadow-xl overflow-hidden transform transition duration-300 hover:scale-105 group';
 
                 // Use the stored thumbnailUrl (which can be base64 or placeholder)
                 // Fallback to a generic placeholder if thumbnailUrl is missing
                 const thumbnailUrl = video.thumbnailUrl || `https://placehold.co/600x400/334155/E2E8F0?text=Video+Preview`;
+
+                // Determine if delete button should be visible
+                const deleteButtonClass = isEditMode ? 'delete-button bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-400' : 'delete-button hidden';
 
                 videoCard.innerHTML = `
                     <div class="relative w-full h-48 bg-gray-600 flex items-center justify-center overflow-hidden rounded-t-lg">
@@ -398,7 +437,7 @@
                             Link: <span class="font-mono text-xs">${video.embedUrl}</span>
                         </p>
                         <div class="flex justify-end">
-                            <button data-id="${video.id}" class="delete-button bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-400">
+                            <button data-id="${video.id}" class="${deleteButtonClass}">
                                 Hapus
                             </button>
                         </div>
@@ -559,6 +598,29 @@
             }
         });
         confirmNoBtn.addEventListener('click', closeConfirmModal);
+
+        // --- Edit Mode Toggle ---
+        toggleEditModeBtn.addEventListener('click', () => {
+            isEditMode = !isEditMode; // Toggle the state
+            editModeControls.classList.toggle('hidden', !isEditMode); // Show/hide form and user ID display
+
+            if (isEditMode) {
+                toggleEditModeBtn.textContent = 'Mode Tampilan';
+                toggleEditModeBtn.classList.remove('bg-blue-600');
+                toggleEditModeBtn.classList.add('bg-orange-600');
+            } else {
+                toggleEditModeBtn.textContent = 'Mode Edit';
+                toggleEditModeBtn.classList.remove('bg-orange-600');
+                toggleEditModeBtn.classList.add('bg-blue-600');
+            }
+            renderVideoList(); // Re-render to show/hide delete buttons on cards
+        });
+
+        // --- Search Input Listener ---
+        searchInput.addEventListener('input', (event) => { // New: Listen for input changes
+            searchQuery = event.target.value.trim(); // Update search query
+            renderVideoList(); // Re-render the list with filtered results
+        });
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
