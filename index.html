@@ -74,7 +74,7 @@
             Memuat data...
         </div>
 
-        <!-- User ID Display -->
+        <!-- User ID Display (Optional: can be removed if not needed for debugging) -->
         <div class="text-center text-gray-400 text-sm mb-6">
             <span id="userIdDisplay">User ID: Memuat...</span>
         </div>
@@ -209,16 +209,18 @@
 
         // Access global variables provided by the environment
         // Ganti dengan konfigurasi Firebase Anda yang sebenarnya!
-        const appId = 'my-youtube-app-local'; // Ganti dengan ID aplikasi unik Anda
-        const firebaseConfig = {
+        // Jika Anda menjalankan di lingkungan Canvas, biarkan seperti ini.
+        // Jika Anda menjalankan secara lokal, ganti dengan konfigurasi Firebase Anda.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'my-youtube-app-local';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : JSON.stringify({
             apiKey: "AIzaSyAIrpNaBxTb_LuNUc9L2ZugKm7nf_E4a1o",
             authDomain: "mytubegdapp.firebaseapp.com",
             projectId: "mytubegdapp",
             storageBucket: "mytubegdapp.firebasestorage.app",
             messagingSenderId: "543655692826",
             appId: "1:543655692826:web:efd120701dbf88c3fddfa3"
-        };
-        const initialAuthToken = null; // Biarkan null untuk masuk secara anonim
+        }));
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         // Global array to store video data (will be populated by Firestore listener)
         let videos = [];
@@ -232,7 +234,7 @@
         const videoListContainer = document.getElementById('videoList');
         const noVideosMessage = document.getElementById('noVideosMessage');
         const loadingIndicator = document.getElementById('loadingIndicator');
-        const userIdDisplay = document.getElementById('userIdDisplay');
+        const userIdDisplay = document.getElementById('userIdDisplay'); // Tetap ada untuk debugging/informasi
 
         // Thumbnail elements
         const thumbnailUploadInput = document.getElementById('thumbnailUpload');
@@ -424,15 +426,10 @@
                     const videoIdToDelete = event.currentTarget.dataset.id; // ID from Firestore doc.id
                     showConfirmModal('Apakah Anda yakin ingin menghapus video ini?', async () => {
                         try {
-                            // Ensure userId is available before attempting Firestore operation
-                            if (!userId || userId === 'Memuat...') {
-                                showMessageModal("Gagal menghapus video: User ID belum tersedia. Coba lagi.");
-                                closeConfirmModal();
-                                return;
-                            }
-                            const docRef = firebase.firestore.doc(db, `artifacts/${appId}/users/${userId}/videos`, videoIdToDelete);
+                            // Tidak perlu memeriksa userId di sini karena data bersifat publik
+                            const docRef = firebase.firestore.doc(db, `artifacts/${appId}/public/data/videos`, videoIdToDelete);
                             await firebase.firestore.deleteDoc(docRef);
-                            // onSnapshot will automatically update the 'videos' array and re-render
+                            // onSnapshot akan secara otomatis memperbarui array 'videos' dan merender ulang
                             closeConfirmModal();
                         } catch (e) {
                             console.error("Error deleting document:", e);
@@ -453,11 +450,11 @@
                 // Listen for auth state changes
                 firebase.auth.onAuthStateChanged(auth, user => {
                     if (user) {
-                        userId = user.uid;
+                        userId = user.uid; // userId tetap disetel, tetapi tidak digunakan untuk jalur data video
                         userIdDisplay.textContent = `User ID: ${userId}`;
-                        setupFirestoreListener(); // Start listening to Firestore after auth
+                        setupFirestoreListener(); // Mulai mendengarkan Firestore setelah otentikasi
                     } else {
-                        // Sign in anonymously if no token or user
+                        // Masuk secara anonim jika tidak ada token atau pengguna
                         if (initialAuthToken) {
                             firebase.auth.signInWithCustomToken(auth, initialAuthToken)
                                 .catch(e => {
@@ -469,7 +466,7 @@
                             firebase.auth.signInAnonymously(auth);
                         }
                     }
-                    loadingIndicator.classList.add('hidden'); // Hide loading once auth state is determined
+                    loadingIndicator.classList.add('hidden'); // Sembunyikan loading setelah status otentikasi ditentukan
                 });
 
             } catch (e) {
@@ -481,20 +478,16 @@
         }
 
         function setupFirestoreListener() {
-            // Ensure userId is available before setting up listener
-            if (!userId || userId === 'Memuat...') {
-                console.warn("User ID belum tersedia, tidak dapat menyiapkan listener Firestore.");
-                return;
-            }
-            const videosCollectionRef = firebase.firestore.collection(db, `artifacts/${appId}/users/${userId}/videos`);
-            // Use onSnapshot for real-time updates
+            // Jalur koleksi sekarang adalah publik, tidak lagi bergantung pada userId
+            const videosCollectionRef = firebase.firestore.collection(db, `artifacts/${appId}/public/data/videos`);
+            // Gunakan onSnapshot untuk pembaruan real-time
             firebase.firestore.onSnapshot(videosCollectionRef, (snapshot) => {
                 const newVideos = [];
                 snapshot.forEach(doc => {
                     newVideos.push({ id: doc.id, ...doc.data() });
                 });
                 videos = newVideos;
-                renderVideoList(); // Re-render the list with updated data
+                renderVideoList(); // Render ulang daftar dengan data yang diperbarui
             }, (error) => {
                 console.error("Error fetching videos from Firestore:", error);
                 showMessageModal("Gagal memuat video dari database. Coba refresh halaman dan periksa izin Firestore Anda.");
@@ -515,9 +508,9 @@
                 return;
             }
 
-            // Ensure userId is available before attempting Firestore operation
-            if (!userId || userId === 'Memuat...') {
-                showMessageModal("Gagal menambahkan video: User ID belum tersedia. Harap tunggu sebentar atau refresh halaman.");
+            // Pastikan pengguna sudah terotentikasi sebelum menambahkan data
+            if (!auth || !auth.currentUser) {
+                showMessageModal("Gagal menambahkan video: Pengguna belum terotentikasi. Harap tunggu sebentar.");
                 return;
             }
 
@@ -525,21 +518,22 @@
 
             if (fileId) {
                 const embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
-                // Use selected thumbnail if available, otherwise fallback to a generic placeholder
+                // Gunakan thumbnail yang dipilih jika tersedia, jika tidak, gunakan placeholder generik
                 const finalThumbnailUrl = selectedThumbnailBase64 || `https://placehold.co/600x400/334155/E2E8F0?text=Video+Preview`;
 
                 try {
-                    const videosCollectionRef = firebase.firestore.collection(db, `artifacts/${appId}/users/${userId}/videos`);
+                    // Jalur koleksi sekarang adalah publik
+                    const videosCollectionRef = firebase.firestore.collection(db, `artifacts/${appId}/public/data/videos`);
                     await firebase.firestore.addDoc(videosCollectionRef, {
                         title: newVideoTitle,
                         embedUrl: embedUrl,
-                        thumbnailUrl: finalThumbnailUrl, // Store the base64 string or placeholder URL
+                        thumbnailUrl: finalThumbnailUrl, // Simpan string base64 atau URL placeholder
                         createdAt: firebase.firestore.serverTimestamp()
                     });
-                    // onSnapshot will handle updating the UI
+                    // onSnapshot akan menangani pembaruan UI
                     videoLinkInput.value = '';
                     videoTitleInput.value = '';
-                    clearThumbnailPreview(); // Clear thumbnail preview after adding
+                    clearThumbnailPreview(); // Hapus pratinjau thumbnail setelah menambahkan
                 } catch (e) {
                     console.error("Error adding document:", e);
                     showMessageModal("Gagal menambahkan video ke database. Periksa izin Firestore Anda.");
@@ -552,7 +546,7 @@
         // Close Player Modal
         closePlayerModalBtn.addEventListener('click', () => {
             playerModal.classList.add('hidden');
-            videoPlayerIframe.src = ''; // Stop video playback
+            videoPlayerIframe.src = ''; // Hentikan pemutaran video
         });
 
         // Close Message Modal
@@ -568,7 +562,7 @@
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
-            initializeFirebaseAndAuth(); // Initialize Firebase and authentication
+            initializeFirebaseAndAuth(); // Inisialisasi Firebase dan otentikasi
         });
     </script>
 </body>
